@@ -18,27 +18,29 @@ class Dataset():
 
     def __init__(self, batch_size, tar_path, ntar_path, length=4000, tar_ratio=0.5):
         self.batch_size = batch_size
-        # self.target_path = tar_path
-        # self.non_target_path = ntar_path
         self.tar_wavfiles = glob.glob(tar_path)
         self.ntar_wavfiles = glob.glob(ntar_path)
+        if len(self.tar_wavfiles) == 0:
+            raise FileNotFoundError("target dataset not found.")
+        if len(self.ntar_wavfiles) == 0:
+            raise FileNotFoundError("non-target dataset not found.")
         self.length = length
         self.tar_ratio = tar_ratio
 
     def __call__(self, n_prefetch=1000, n_thread=32):
         dataset = tf.data.Dataset.from_tensors(0)
         dataset = dataset.map(
-            lambda _: tf.py_func(self._get_random_wav_and_label, [], [tf.float32, tf.int64, tf.float64]),
+            lambda _: tf.py_func(self.get_random_wav_and_label, [], [tf.float32, tf.float32, tf.int32]),
             num_parallel_calls=n_thread)
         dataset = dataset.repeat().batch(self.batch_size).prefetch(n_prefetch)
         return dataset
 
-    def _get_random_wav_and_label(self):
+    def get_random_wav_and_label(self):
         """
 
         :return: wav: raw wave. float32. shape=(t, ),
-                 label: 1 if target, 0 otherwise. int64.
-                 melspec: mel-spectrogram. float64. shape=(t, n_mels)
+                 label: 1 if target, 0 otherwise. int32.
+                 melspec: mel-spectrogram. float32. shape=(t, n_mels)
         """
         wavfiles, label = (self.tar_wavfiles, 1) if np.random.sample(1) <= self.tar_ratio else (self.ntar_wavfiles, 0)
         wavfile = np.random.choice(wavfiles, 1)[0]
@@ -48,7 +50,9 @@ class Dataset():
         melspec = wav2melspec_db(wav, sr=hp.signal.sr, n_fft=hp.signal.n_fft, win_length=hp.signal.win_length,
                                  hop_length=hp.signal.hop_length, n_mels=hp.signal.n_mels,
                                  min_db=hp.signal.min_db, max_db=hp.signal.max_db)
-        return wav, label, melspec
+        melspec = np.float32(melspec)
+        label = np.int32(label)
+        return wav, melspec, label
 
 
 """ The following is only for test. """
@@ -58,4 +62,4 @@ iterator = dataset().make_one_shot_iterator()
 
 with tf.Session() as sess:
     next = iterator.get_next()
-    wav, label, melspec = sess.run(next)
+    wav, melspec, label = sess.run(next)

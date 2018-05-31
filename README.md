@@ -1,4 +1,9 @@
 # Voice Discriminator
+## Environment
+* python 3.5
+* tensorflow-gpu 1.8.0
+* tensorpack 0.8.5
+
 ## Dataset
 * A set of raw waves of target speaker. label 1
 * A large set of raw waves of non-target speakers. label 0
@@ -9,3 +14,9 @@
 ## Models
 * CBHG
 * Dilated Conv
+
+## TODOs
+dataset for non-target
+merge/refactor mudules.py
+eval code in run.py
+fix: python 2 compatibility in data.py
