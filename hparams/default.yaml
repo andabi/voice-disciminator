@@ -9,15 +9,24 @@ signal:
     min_db: -55
     length: 4000
 train:
-    tar_path: '/data/public/rw/IU/*_split/*.wav'
-    ntar_path: '/data/public/rw/arctic/*/*.wav'
-    batch_size: 256
+    tar_path: '/data/public/rw/IU/melon_*_split/*.wav'
+    ntar_path: '/data/public/rw/timit/TIMIT/TRAIN/*/*/*.wav'
+#    ntar_path: '/data/public/rw/voxceleb_norm/*/*.wav'
+    batch_size: 8
     num_gpu: 4
     lr: 0.0002
     num_epochs: 100000
     steps_per_epoch: 100
     save_per_epoch: 100
 eval:
-    data_path: '/data/public/rw/IU/*_split/*.wav'
-    batch_size: 3
+    tar_path: '/data/public/rw/IU/v_app_split/*.wav'
+    ntar_path: '/data/public/rw/timit/TIMIT/TEST/*/*/*.wav'
+    batch_size: 32
+disc:
+#    data_path: '/data/public/rw/IU/youtube_video/*.wav'
+#    data_path: '/data/public/rw/IU/v_app_split/*.wav'
+    data_path: '/data/public/rw/timit/TIMIT/TEST/*/*/*.wav'
+    tar_path: '/data/private/voice-discriminator/outputs/tar'
+    ntar_path: '/data/private/voice-discriminator/outputs/ntar'
+    batch_size: 8
 logdir_path: '/data/private/voice-discriminator/logdir'

@@ -20,7 +20,7 @@ from tensorpack.train.interface import launch_train_with_config
 from tensorpack.train.trainers import SyncMultiGPUTrainerReplicated, SimpleTrainer
 from tensorpack.utils import logger
 
-from data import Dataset
+from data import LabelledDataset, UnLabelledDataset
 from hparam import hparam as hp
 from models import default_model
 from utils import remove_all_files
@@ -31,10 +31,10 @@ class EvalCallback(Callback):
     def _setup_graph(self):
         self.pred = self.trainer.get_predictor(
             ['melspec', 'labels'], ['loss', 'accuracy'])
-        self.dataset = Dataset(hp.eval.batch_size, hp.eval.data_path, hp.eval.data_path, length=hp.signal.length, tar_ratio=1.)
+        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length)
 
     def _trigger_epoch(self):
-        wav, melspec, label = zip(*list(self.dataset.get_random_wav_and_label() for _ in range(hp.eval.batch_size)))
+        wav, melspec, label = zip(*list(next(self.dataset.random_wav_and_label_generator()) for _ in range(hp.eval.batch_size)))
         loss, acc = self.pred(melspec, label)
         self.trainer.monitors.put_scalar('eval/loss', loss)
         self.trainer.monitors.put_scalar('eval/accuracy', acc)
@@ -55,7 +55,7 @@ class Runner(object):
             remove_all_files(hp.logdir)
 
         # dataset
-        dataset = Dataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, length=hp.signal.length)
+        dataset = LabelledDataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, length=hp.signal.length)
 
         # set logger for event and model saver
         logger.set_logger_dir(hp.logdir)
@@ -66,7 +66,7 @@ class Runner(object):
             callbacks=[
                 ModelSaver(checkpoint_dir=hp.logdir),
                 EvalCallback(),
-                # RunUpdateOps()
+                # RunUpdateOps()  # enable this when using batch normalization.
             ],
             max_epoch=hp.train.num_epochs,
             steps_per_epoch=hp.train.steps_per_epoch,
@@ -85,6 +85,62 @@ class Runner(object):
             trainer = SyncMultiGPUTrainerReplicated(gpus=hp.train.num_gpu)
 
         launch_train_with_config(train_conf, trainer=trainer)
+
+    def discriminate(self, case='default', model=default_model, ckpt=None, gpu=None):
+        """
+        :param case: experiment case name
+        :param ckpt: checkpoint to load model
+        :param gpu: comma separated list of GPU(s) to use
+        """
+
+        hp.set_hparam_yaml(case)
+
+        # dataset
+        dataset = UnLabelledDataset(hp.disc.batch_size, hp.disc.data_path, length=hp.signal.length)
+
+        # sample
+        iterator = dataset().make_one_shot_iterator()
+        wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
+
+        # feed forward
+        _, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
+
+        # summaries
+        # summ_op = tf.summary.merge_all()
+
+        session_config = tf.ConfigProto(
+            device_count={'CPU': 1, 'GPU': 1},
+        )
+        with tf.Session(config=session_config) as sess:
+
+            # load model
+            ckpt = '{}/{}'.format(hp.logdir, ckpt) if ckpt else tf.train.latest_checkpoint(hp.logdir)
+            sess.run(tf.global_variables_initializer())
+            if ckpt:
+                tf.train.Saver().restore(sess, ckpt)
+                print('Successfully loaded checkpoint {}'.format(ckpt))
+            else:
+                print('No checkpoint found at {}.'.format(hp.logdir))
+
+            # classification
+            while True:
+                try:
+                    pred, wavfile = sess.run([pred_tensor, wavfile_tensor])
+                    tar_wavfile = (w for p, w in zip(pred, wavfile) if p == 1)
+                    for w in tar_wavfile:
+                        print(w)
+                except tf.errors.OutOfRangeError:
+                    break
+
+            # summ = sess.run([summ_op])
+
+        # write summaries in tensorboard
+        writer = tf.summary.FileWriter(hp.logdir)
+        # writer.add_summary(summ)
+        writer.close()
+
+        print('Done.')
+
 
 if __name__ == '__main__':
     fire.Fire(Runner)

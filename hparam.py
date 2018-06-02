@@ -10,7 +10,10 @@ import yaml
 
 
 def load_hparam(filename):
-    stream = open(filename, 'r')
+    try:
+        stream = open(filename, 'r')
+    except FileNotFoundError:
+        return None
     docs = yaml.load_all(stream)
     hparam_dict = dict()
     for doc in docs:
@@ -63,12 +66,11 @@ class Hparam(Dotdict):
         
         :param case: the name of a experiment. custom hparam for this experiment is defined in hparams/[case].yaml.
         :param default_file: the path that default hparam file is located.
-        :return: 
         """
         default_hp = load_hparam(default_file)
         user_file = 'hparams/{}.yaml'.format(case)
         user_hp = load_hparam(user_file)
-        hp_dict = Dotdict(merge_dict(user_hp[case], default_hp) if case in user_hp else default_hp)
+        hp_dict = Dotdict(merge_dict(user_hp, default_hp) if user_hp else default_hp)
         for k, v in hp_dict.items():
             setattr(self, k, v)
         self._auto_setting(case)

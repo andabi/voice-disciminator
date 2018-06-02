@@ -10,13 +10,10 @@
 * preprocessing required
   * consistent sample rate
 * augment volumns
-  
-## Models
-* CBHG
-* Dilated Conv
 
 ## TODOs
+augment volumns
+optimize data pipeline
 dataset for non-target
 merge/refactor mudules.py
-eval code in run.py
 fix: python 2 compatibility in data.py
