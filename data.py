@@ -29,7 +29,7 @@ class LabelledDataset():
         self.length = length
         self.tar_ratio = tar_ratio
 
-    def __call__(self, n_prefetch=1000, n_thread=32):
+    def __call__(self, n_prefetch=10000, n_thread=32):
         dataset = tf.data.Dataset.from_tensors((0., 0., 0))  # dummy input
         # real data generator.
         # This is workaround: use it to execute in parallel instead of using tf.data.Dataset.from_generator.
@@ -38,7 +38,8 @@ class LabelledDataset():
             num_parallel_calls=n_thread)
         # reshape tensors to define the shapes manually. It will occur errors in tf.layer.dense without this.
         length_melspec = hp.signal.length // hp.signal.hop_length + 1
-        dataset = dataset.map(lambda w, m, l: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(l, [])))
+        dataset = dataset.map(lambda w, m, l: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(l, [])),
+                              num_parallel_calls=n_thread)
         dataset = dataset.repeat().batch(self.batch_size).prefetch(n_prefetch)
         return dataset
 
@@ -84,7 +85,8 @@ class UnLabelledDataset():
         dataset = dataset.map(
             lambda wavfile: tf.py_func(self.get_random_wav, [wavfile], [tf.float32, tf.float32, tf.string]),
             num_parallel_calls=n_thread)
-        dataset = dataset.map(lambda w, m, s: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(s, [])))
+        dataset = dataset.map(lambda w, m, s: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(s, [])),
+                              num_parallel_calls=n_thread)
         dataset = dataset.batch(self.batch_size).prefetch(n_prefetch)
         return dataset
 

@@ -34,7 +34,7 @@ class EvalCallback(Callback):
         self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5)
 
     def _trigger_epoch(self):
-        wav, melspec, label = zip(*list(next(self.dataset.get_random_wav_and_label()) for _ in range(hp.eval.batch_size)))
+        wav, melspec, label = zip(*list(self.dataset.get_random_wav_and_label() for _ in range(hp.eval.batch_size)))
         loss, acc = self.pred(melspec, label)
         self.trainer.monitors.put_scalar('eval/loss', loss)
         self.trainer.monitors.put_scalar('eval/accuracy', acc)

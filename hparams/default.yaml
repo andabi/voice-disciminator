@@ -12,7 +12,7 @@ train:
     tar_path: '/path/to/tar/train/*.wav'
     ntar_path: '/path/to/ntar/train/*.wav'
     batch_size: 8
-    num_gpu: 4
+    num_gpu: 1
     lr: 0.0002
     num_epochs: 100000
     steps_per_epoch: 100
