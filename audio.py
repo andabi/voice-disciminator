@@ -13,6 +13,7 @@ import librosa
 import soundfile as sf
 import numpy as np
 import random
+import pyarrow
 
 
 def read_wav(path, sr, duration=None, mono=True):
@@ -44,6 +45,11 @@ def read_spectrogram(prefix):
 def write_spectrogram(prefix, spec):
     filename = '{}.spec'.format(prefix)
     np.save(filename, spec)
+
+
+def read_wav_from_arr(path):
+    with open(path, 'rb') as rb:
+        return pyarrow.deserialize(rb.read())
 
 
 def split_wav(wav, top_db):

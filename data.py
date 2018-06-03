@@ -3,7 +3,7 @@
 
 import glob
 
-from audio import read_wav, wav2melspec_db, trim_wav, crop_random_wav, fix_length, augment_volume
+from audio import read_wav, wav2melspec_db, trim_wav, crop_random_wav, fix_length, augment_volume, read_wav_from_arr
 from hparam import hparam as hp
 
 import tensorflow as tf
@@ -51,8 +51,12 @@ class LabelledDataset():
         """
         wavfiles, label = (self.tar_wavfiles, 1) if np.random.sample(1) <= self.tar_ratio else (self.ntar_wavfiles, 0)
         wavfile = np.random.choice(wavfiles, 1)[0]
-        wav = read_wav(wavfile, sr=hp.signal.sr)
+        if wavfile.endswith('arr'):  # pyarrow format
+            wav = read_wav_from_arr(wavfile)
+        else:
+            wav = read_wav(wavfile, sr=hp.signal.sr)
         wav = trim_wav(wav)
+
         wav = crop_random_wav(wav, self.length)
         wav = augment_volume(wav)
         wav = fix_length(wav, self.length)  # padding
