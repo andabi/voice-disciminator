@@ -59,7 +59,7 @@ class Model(ModelDesc):
 
             # discrimination
             logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
-            pred = tf.to_int32(tf.argmax(logits, axis=1), name='prediction')  # (n,)
+            pred = tf.to_int32(tf.argmax(logits, axis=-1), name='prediction')  # (n,)
 
         return logits, pred
 

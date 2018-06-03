@@ -102,7 +102,8 @@ class Runner(object):
         wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
 
         # feed forward
-        _, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
+        logit_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
+        prob_tensor = tf.nn.softmax(logit_tensor)
 
         # summaries
         # summ_op = tf.summary.merge_all()
@@ -124,11 +125,12 @@ class Runner(object):
             # classification
             while True:
                 try:
-                    pred, wavfile = sess.run([pred_tensor, wavfile_tensor])
-                    tar_wavfile = [w for p, w in zip(pred, wavfile) if p == 1]
-                    print('target wavfile size: {}'.format(len(tar_wavfile)))
-                    for w in tar_wavfile:
-                        print(w)
+                    pred, wavfile, prob, logit = sess.run([pred_tensor, wavfile_tensor, prob_tensor, logit_tensor])
+                    # tar_wavfile, tar_prob = zip(*[(w, pr) for p, w, pr in zip(pred, wavfile, prob) if p == 1])
+                    # print('target wavfile size: {}'.format(len(tar_wavfile)))
+                    # for w, p in zip(tar_wavfile, tar_prob):
+                    for w, p, pr in zip(wavfile, pred, prob):
+                        print(w, p, pr)
                 except tf.errors.OutOfRangeError:
                     break
 

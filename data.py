@@ -51,7 +51,7 @@ class LabelledDataset():
                  melspec: mel-spectrogram. float32. shape=(t, n_mels)
         """
         wavfiles, label = (self.tar_wavfiles, 1) if np.random.sample(1) <= self.tar_ratio else (self.ntar_wavfiles, 0)
-        wavfile = np.random.choice(wavfiles, 1)[0]
+        wavfile = wavfiles[np.random.randint(0, len(wavfiles))]
         if wavfile.endswith('arr'):  # pyarrow format
             wav = read_wav_from_arr(wavfile)
         else:

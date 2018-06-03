@@ -16,7 +16,6 @@ train:
     lr: 0.0002
     num_epochs: 100000
     steps_per_epoch: 100
-    save_per_epoch: 100
     tar_ratio: 0.5
 eval:
     tar_path: '/path/to/tar/eval/*.wav'

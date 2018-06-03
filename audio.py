@@ -83,7 +83,7 @@ def crop_random_wav(wav, length=None):
     assert (type(length) == int)
 
     wav_len = wav.shape[-1]
-    start = np.random.choice(range(np.maximum(1, wav_len - length)), 1)[0]
+    start = np.random.randint(0, np.maximum(1, wav_len - length))
     end = start + length
     if wav.ndim == 1:
         wav = wav[start:end]
