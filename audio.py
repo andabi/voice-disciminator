@@ -12,6 +12,7 @@ import os
 import librosa
 import soundfile as sf
 import numpy as np
+import random
 
 
 def read_wav(path, sr, duration=None, mono=True):
@@ -400,3 +401,67 @@ def wav2mfcc(wav, sr, n_fft, win_length, hop_length, n_mels, n_mfccs, preemphasi
         mfccs = mfccs.T  # (t, n_mfccs)
 
     return mfccs
+
+
+def augment_volume(wav, rate_lower=0.7, rate_upper=1.3):
+    """
+    Increase or decrease a waveform's volume by a randomly selected rate.
+    :param wav: a waveform.
+    :param rate_lower: lower bound of rate
+    :param rate_upper: upper bound of rate
+    :return: 
+    """
+    return wav * random.uniform(rate_lower, rate_upper)
+
+
+def augment_roll(wav, shift):
+    """
+    Rotate a waveform along time-axis.
+    :param wav: a waveform.
+    :param shift: shift length.
+    :return: a rolled waveform.
+    """
+    return np.roll(wav, shift)
+
+
+def augment_stretch(wav, rate=1, length=None):
+    """
+    Stretch a waveform along time-axis.
+    :param wav: a waveform.
+    :param rate: stretch rate.
+    :param length: fixed length of the stretched waveform. optional.
+    :return: a stretched waveform.
+    """
+    wav = librosa.effects.time_stretch(wav, rate)
+    if length:
+        if len(wav) > length:
+            wav = wav[:length]
+        else:
+            wav = np.pad(wav, (0, max(0, length - len(wav))), "constant")
+    return wav
+
+
+def augment_pitch(wav, sr, n_steps_lower=-3., n_steps_upper=3.):
+    """
+    Heighten or lower a waveform's pitch by a randomly selected half-steps.
+    :param wav: a waveform.
+    :param sr: sample rate.
+    :param n_steps_lower: lower bound of the number of half-steps.
+    :param n_steps_upper: upper bound of the number of half-steps.
+    :return: a increased or decreased waveform.
+    """
+    n_steps = random.uniform(n_steps_lower, n_steps_upper)
+    wav = librosa.effects.pitch_shift(wav, sr, n_steps)
+    return wav
+
+
+def augment_noise(wav):
+    """
+    Add randomly generated white noise to waveform.
+    :param wav: a waveform.
+    :return: a noisy waveform.
+    """
+    # Adding white noise
+    wn = np.random.randn(len(wav))
+    wav_wn = wav + 0.005 * wn
+    return wav_wn

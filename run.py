@@ -31,10 +31,10 @@ class EvalCallback(Callback):
     def _setup_graph(self):
         self.pred = self.trainer.get_predictor(
             ['melspec', 'labels'], ['loss', 'accuracy'])
-        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length)
+        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5)
 
     def _trigger_epoch(self):
-        wav, melspec, label = zip(*list(next(self.dataset.random_wav_and_label_generator()) for _ in range(hp.eval.batch_size)))
+        wav, melspec, label = zip(*list(next(self.dataset.get_random_wav_and_label()) for _ in range(hp.eval.batch_size)))
         loss, acc = self.pred(melspec, label)
         self.trainer.monitors.put_scalar('eval/loss', loss)
         self.trainer.monitors.put_scalar('eval/accuracy', acc)
@@ -49,13 +49,12 @@ class Runner(object):
         :param gpu: comma separated list of GPU(s) to use
         :param r: start from the beginning.
         """
-
         hp.set_hparam_yaml(case)
         if r:
             remove_all_files(hp.logdir)
 
         # dataset
-        dataset = LabelledDataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, length=hp.signal.length)
+        dataset = LabelledDataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, length=hp.signal.length, tar_ratio=hp.train.tar_ratio)
 
         # set logger for event and model saver
         logger.set_logger_dir(hp.logdir)
@@ -126,7 +125,8 @@ class Runner(object):
             while True:
                 try:
                     pred, wavfile = sess.run([pred_tensor, wavfile_tensor])
-                    tar_wavfile = (w for p, w in zip(pred, wavfile) if p == 1)
+                    tar_wavfile = [w for p, w in zip(pred, wavfile) if p == 1]
+                    print('target wavfile size: {}'.format(len(tar_wavfile)))
                     for w in tar_wavfile:
                         print(w)
                 except tf.errors.OutOfRangeError:

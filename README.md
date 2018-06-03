@@ -12,8 +12,7 @@
 * augment volumns
 
 ## TODOs
-augment volumns
-optimize data pipeline
-dataset for non-target
-merge/refactor mudules.py
-fix: python 2 compatibility in data.py
+* dataset for non-target
+  * optimize data pipeline
+* merge/refactor mudules.py
+* fix: python 2 compatibility in data.py
