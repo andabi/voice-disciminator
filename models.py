@@ -28,7 +28,7 @@ class Model(ModelDesc):
         self.num_highway = num_highway
         self.norm_type = norm_type
 
-    def discriminate(self, x, is_training=False, threshold=0.85, name='discriminator'):
+    def discriminate(self, x, is_training=False, threshold=0.7, name='discriminator'):
         """
         :param x: shape=(n, t, n_mels)
         :param is_training
@@ -81,7 +81,7 @@ class Model(ModelDesc):
     def _build_graph(self, inputs):
         _, self.x, self.labels = inputs
         is_training = get_current_tower_context().is_training
-        self.prob, self.pred = self.discriminate(self.x, is_training)  # (n,), (n,)
+        self.prob, self.pred = self.discriminate(self.x, is_training, threshold=hp.disc.threshold)  # (n,), (n,)
         self.cost = self.loss()
 
         # summaries

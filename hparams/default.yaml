@@ -28,4 +28,5 @@ disc:
     tar_path: '/path/to/tar/disc/*.wav'
     ntar_path: '/path/to/ntar/disc/*.wav'
     batch_size: 8
+    threshold: 0.7
 logdir_path: '/path/to/logdir'

@@ -102,7 +102,7 @@ class Runner(object):
         wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
 
         # feed forward
-        prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
+        prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False, threshold=hp.disc.threshold)
 
         # summaries
         # summ_op = tf.summary.merge_all()
