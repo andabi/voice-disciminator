@@ -28,7 +28,7 @@ class Model(ModelDesc):
         self.num_highway = num_highway
         self.norm_type = norm_type
 
-    def discriminate(self, x, is_training=False, t=10., threshold=0.85, name='discriminator'):
+    def discriminate(self, x, is_training=False, threshold=0.85, name='discriminator'):
         """
         :param x: shape=(n, t, n_mels)
         :param is_training
@@ -38,8 +38,10 @@ class Model(ModelDesc):
         :return: prediction. shape=(n, 1)
         """
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
-            # frame-level
-            x = tf.layers.dense(x, units=self.hidden_units, activation=tf.nn.relu)  # (n, t, h)
+            x = tf.layers.dense(x, units=self.hidden_units, activation=tf.nn.relu, name="dense1")
+            x = tf.layers.dropout(x, rate=0.5, training=is_training, name="dropout1")
+            x = tf.layers.dense(x, units=self.hidden_units, activation=tf.nn.relu, name="dense2")
+            x = tf.layers.dropout(x, rate=0.5, training=is_training, name="dropout2")
 
             out = conv1d_banks(x, K=self.num_banks, num_units=self.hidden_units, norm_type=self.norm_type,
                                is_training=is_training)  # (n, t, k * h)
@@ -60,14 +62,13 @@ class Model(ModelDesc):
             out = out[..., -1]  # (n, h)
 
             # discrimination
-            logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
-            prob = tf.nn.softmax(logits / t)  # (n, 2)
-            pred = tf.greater(prob[:, 1], threshold)  # (n,)
+            prob = tf.layers.dense(out, 1, name='logits', activation=tf.nn.sigmoid)  # (n,)
+            pred = tf.greater(prob, threshold)  # (n,)
 
-        return logits, prob, pred
+        return prob, pred
 
     def loss(self):
-        loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
+        loss = -(self.labels[:, 1] * tf.log(self.prob) + self.labels[:, 0] * tf.log(1. - self.prob))  # cross entropy
         loss = tf.reduce_mean(loss, name='loss')
         return loss
 
@@ -80,7 +81,7 @@ class Model(ModelDesc):
     def _build_graph(self, inputs):
         _, self.x, self.labels = inputs
         is_training = get_current_tower_context().is_training
-        self.logits, self.prob, self.pred = self.discriminate(self.x, is_training)  # (n, 2), (n,)
+        self.prob, self.pred = self.discriminate(self.x, is_training)  # (n,), (n,)
         self.cost = self.loss()
 
         # summaries
@@ -92,4 +93,4 @@ class Model(ModelDesc):
         return tf.train.AdamOptimizer(lr)
 
 
-default_model = Model(num_banks=8, hidden_units=128, num_highway=2, norm_type='ins')
+default_model = Model(num_banks=8, hidden_units=64, num_highway=4, norm_type='ins')

@@ -31,7 +31,7 @@ class EvalCallback(Callback):
     def _setup_graph(self):
         self.pred = self.trainer.get_predictor(
             ['melspec', 'labels'], ['loss'])
-        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5)
+        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5, is_training=False)
 
     def _trigger_epoch(self):
         wav, melspec, label = zip(*list(self.dataset.get_random_wav_and_label() for _ in range(hp.eval.batch_size)))
@@ -102,7 +102,7 @@ class Runner(object):
         wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
 
         # feed forward
-        logit_tensor, prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
+        prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
 
         # summaries
         # summ_op = tf.summary.merge_all()
@@ -124,7 +124,7 @@ class Runner(object):
             # classification
             while True:
                 try:
-                    pred, wavfile, prob, logit = sess.run([pred_tensor, wavfile_tensor, prob_tensor, logit_tensor])
+                    pred, wavfile, prob = sess.run([pred_tensor, wavfile_tensor, prob_tensor])
                     # tar_wavfile, tar_prob = zip(*[(w, pr) for p, w, pr in zip(pred, wavfile, prob) if p == 1])
                     # print('target wavfile size: {}'.format(len(tar_wavfile)))
                     # for w, p in zip(tar_wavfile, tar_prob):

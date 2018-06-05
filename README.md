@@ -19,3 +19,4 @@
   * optimize data pipeline
 * merge/refactor mudules.py
 * fix: python 2 compatibility in data.py
+* hparam xxx/yyy
