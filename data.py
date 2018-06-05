@@ -17,21 +17,31 @@ class LabelledDataset():
     https://github.com/tensorflow/tensorflow/blob/master/tensorflow/docs_src/performance/datasets_performance.md#summary-of-best-practices
     """
 
-    def __init__(self, batch_size, tar_path, ntar_path, tar_labels=(0., 1.), ntar_labels=(1., 0.), length=4000, tar_ratio=0.5):
+    def __init__(self, batch_size, tar_path, ntar_path, tar_labels=(0., 1.), ntar_labels=(1., 0.), length=4000, tar_ratio=0.5, is_training=True):
         self.batch_size = batch_size
-        self.tar_wavfiles = glob.glob(tar_path, recursive=True)
-        self.ntar_wavfiles = glob.glob(ntar_path, recursive=True)
-        if type(tar_labels) == str:
-            tar_labels = make_tuple(tar_labels)
-        if type(ntar_labels) == str:
-            ntar_labels = make_tuple(ntar_labels)
-        self.tar_labels, self.ntar_labels = tar_labels, ntar_labels
+        # TODO refactoring
+        tar_wavfiles = glob.glob(tar_path, recursive=True)
+        ntar_wavfiles = glob.glob(ntar_path, recursive=True)
+        tar_wavfiles_test = tar_wavfiles[::10]
+        ntar_wavfiles_test = ntar_wavfiles[::10]
+        tar_wavfiles_train = list(set(tar_wavfiles) - set(tar_wavfiles_test))
+        ntar_wavfiles_train = list(set(ntar_wavfiles) - set(ntar_wavfiles_test))
+        self.tar_wavfiles = tar_wavfiles_train if is_training else tar_wavfiles_test
+        self.ntar_wavfiles = ntar_wavfiles_train if is_training else ntar_wavfiles_test
+
         if len(self.tar_wavfiles) == 0:
             raise FileNotFoundError("target dataset not found.")
         print('target dataset size: {}'.format(len(self.tar_wavfiles)))
         if len(self.ntar_wavfiles) == 0:
             raise FileNotFoundError("non-target dataset not found.")
         print('non-target dataset size: {}'.format(len(self.ntar_wavfiles)))
+
+        if type(tar_labels) == str:
+            tar_labels = make_tuple(tar_labels)
+        if type(ntar_labels) == str:
+            ntar_labels = make_tuple(ntar_labels)
+        self.tar_labels, self.ntar_labels = tar_labels, ntar_labels
+
         self.length = length
         self.tar_ratio = tar_ratio
 
