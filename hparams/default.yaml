@@ -7,10 +7,12 @@ signal:
     n_mels: 80
     max_db: 35
     min_db: -55
-    length: 4000
+    length: 32000
 train:
     tar_path: '/path/to/tar/train/*.wav'
     ntar_path: '/path/to/ntar/train/*.wav'
+    tar_labels: (0., 1.)
+    ntar_labels: (1., 0.)
     batch_size: 8
     num_gpu: 1
     lr: 0.0002

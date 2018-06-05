@@ -8,6 +8,7 @@ from hparam import hparam as hp
 
 import tensorflow as tf
 import numpy as np
+from ast import literal_eval as make_tuple
 
 
 class LabelledDataset():
@@ -16,10 +17,15 @@ class LabelledDataset():
     https://github.com/tensorflow/tensorflow/blob/master/tensorflow/docs_src/performance/datasets_performance.md#summary-of-best-practices
     """
 
-    def __init__(self, batch_size, tar_path, ntar_path, length=4000, tar_ratio=0.5):
+    def __init__(self, batch_size, tar_path, ntar_path, tar_labels=(0., 1.), ntar_labels=(1., 0.), length=4000, tar_ratio=0.5):
         self.batch_size = batch_size
         self.tar_wavfiles = glob.glob(tar_path, recursive=True)
         self.ntar_wavfiles = glob.glob(ntar_path, recursive=True)
+        if type(tar_labels) == str:
+            tar_labels = make_tuple(tar_labels)
+        if type(ntar_labels) == str:
+            ntar_labels = make_tuple(ntar_labels)
+        self.tar_labels, self.ntar_labels = tar_labels, ntar_labels
         if len(self.tar_wavfiles) == 0:
             raise FileNotFoundError("target dataset not found.")
         print('target dataset size: {}'.format(len(self.tar_wavfiles)))
@@ -34,11 +40,11 @@ class LabelledDataset():
         # real data generator.
         # This is workaround: use it to execute in parallel instead of using tf.data.Dataset.from_generator.
         dataset = dataset.map(
-            lambda w, m, l: tf.py_func(self.get_random_wav_and_label, [], [tf.float32, tf.float32, tf.int32]),
+            lambda w, m, l: tf.py_func(self.get_random_wav_and_label, [], [tf.float32, tf.float32, tf.float32]),
             num_parallel_calls=n_thread)
         # reshape tensors to define the shapes manually. It will occur errors in tf.layer.dense without this.
         length_melspec = hp.signal.length // hp.signal.hop_length + 1
-        dataset = dataset.map(lambda w, m, l: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(l, [])),
+        dataset = dataset.map(lambda w, m, l: (tf.reshape(w, [self.length]), tf.reshape(m, [length_melspec, hp.signal.n_mels]), tf.reshape(l, [2])),
                               num_parallel_calls=n_thread)
         dataset = dataset.repeat().batch(self.batch_size).prefetch(n_prefetch)
         return dataset
@@ -50,7 +56,7 @@ class LabelledDataset():
                  label: 1 if target, 0 otherwise. int32.
                  melspec: mel-spectrogram. float32. shape=(t, n_mels)
         """
-        wavfiles, label = (self.tar_wavfiles, 1) if np.random.sample(1) <= self.tar_ratio else (self.ntar_wavfiles, 0)
+        wavfiles, label = (self.tar_wavfiles, self.tar_labels) if np.random.sample(1) <= self.tar_ratio else (self.ntar_wavfiles, self.ntar_labels)
         wavfile = wavfiles[np.random.randint(0, len(wavfiles))]
         if wavfile.endswith('arr'):  # pyarrow format
             wav = read_wav_from_arr(wavfile)
@@ -65,7 +71,7 @@ class LabelledDataset():
                                  hop_length=hp.signal.hop_length, n_mels=hp.signal.n_mels,
                                  min_db=hp.signal.min_db, max_db=hp.signal.max_db)
         melspec = np.float32(melspec)
-        label = np.int32(label)
+        label = np.float32(label)
         return wav, melspec, label
 
 

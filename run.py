@@ -30,14 +30,14 @@ class EvalCallback(Callback):
 
     def _setup_graph(self):
         self.pred = self.trainer.get_predictor(
-            ['melspec', 'labels'], ['loss', 'accuracy'])
+            ['melspec', 'labels'], ['loss'])
         self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5)
 
     def _trigger_epoch(self):
         wav, melspec, label = zip(*list(self.dataset.get_random_wav_and_label() for _ in range(hp.eval.batch_size)))
-        loss, acc = self.pred(melspec, label)
+        loss, = self.pred(melspec, label)
         self.trainer.monitors.put_scalar('eval/loss', loss)
-        self.trainer.monitors.put_scalar('eval/accuracy', acc)
+        # self.trainer.monitors.put_scalar('eval/accuracy', acc)
 
 
 class Runner(object):
@@ -54,7 +54,7 @@ class Runner(object):
             remove_all_files(hp.logdir)
 
         # dataset
-        dataset = LabelledDataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, length=hp.signal.length, tar_ratio=hp.train.tar_ratio)
+        dataset = LabelledDataset(hp.train.batch_size, hp.train.tar_path, hp.train.ntar_path, hp.train.tar_labels, hp.train.ntar_labels, length=hp.signal.length, tar_ratio=hp.train.tar_ratio)
 
         # set logger for event and model saver
         logger.set_logger_dir(hp.logdir)
@@ -102,8 +102,7 @@ class Runner(object):
         wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
 
         # feed forward
-        logit_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
-        prob_tensor = tf.nn.softmax(logit_tensor)
+        logit_tensor, prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False)
 
         # summaries
         # summ_op = tf.summary.merge_all()

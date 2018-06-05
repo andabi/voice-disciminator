@@ -28,10 +28,12 @@ class Model(ModelDesc):
         self.num_highway = num_highway
         self.norm_type = norm_type
 
-    def discriminate(self, x, is_training=False, name='discriminator'):
+    def discriminate(self, x, is_training=False, t=10., threshold=0.85, name='discriminator'):
         """
         :param x: shape=(n, t, n_mels)
         :param is_training
+        :param t: temperature
+        :param threshold
         :param name
         :return: prediction. shape=(n, 1)
         """
@@ -59,34 +61,31 @@ class Model(ModelDesc):
 
             # discrimination
             logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
-            pred = tf.to_int32(tf.argmax(logits, axis=-1), name='prediction')  # (n,)
+            prob = tf.nn.softmax(logits / t)  # (n, 2)
+            pred = tf.greater(prob[:, 1], threshold)  # (n,)
 
-        return logits, pred
+        return logits, prob, pred
 
     def loss(self):
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
+        loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
         loss = tf.reduce_mean(loss, name='loss')
         return loss
-
-    def accuracy(self):
-        acc = tf.reduce_mean(tf.to_float(tf.equal(self.labels, self.pred)), name='accuracy')
-        return acc
 
     def _get_inputs(self):
         length_melspec = hp.signal.length // hp.signal.hop_length + 1
         return [InputDesc(tf.float32, (None, hp.signal.length), 'wav'),
                 InputDesc(tf.float32, (None, length_melspec, hp.signal.n_mels), 'melspec'),
-                InputDesc(tf.int32, (None,), 'labels')]
+                InputDesc(tf.float32, (None, 2), 'labels')]
 
     def _build_graph(self, inputs):
         _, self.x, self.labels = inputs
         is_training = get_current_tower_context().is_training
-        self.logits, self.pred = self.discriminate(self.x, is_training)  # (n, 2), (n,)
+        self.logits, self.prob, self.pred = self.discriminate(self.x, is_training)  # (n, 2), (n,)
         self.cost = self.loss()
 
         # summaries
         tf.summary.scalar('train/loss', self.cost)
-        tf.summary.scalar('train/accuracy', self.accuracy())
+        # tf.summary.scalar('train/accuracy', self.accuracy())
 
     def _get_optimizer(self):
         lr = tf.get_variable('learning_rate', initializer=hp.train.lr, trainable=False)
