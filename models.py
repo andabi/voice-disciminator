@@ -15,20 +15,19 @@ from hparam import hparam as hp
 from modules import conv1d_banks, conv1d, normalize, highwaynet, gru
 
 
-class Model(ModelDesc):
+class BinaryClassificationModel(ModelDesc):
     """
     n = batch size
     t = timestep size
     h = hidden size
     """
 
-    def __init__(self, num_banks, hidden_units, num_highway, norm_type):
-        self.num_banks = num_banks
+    def __init__(self, hidden_units, num_highway, norm_type):
         self.hidden_units = hidden_units
         self.num_highway = num_highway
         self.norm_type = norm_type
 
-    def discriminate(self, x, is_training=False, t=10., threshold=0.85, name='discriminator'):
+    def discriminate(self, x, is_training=False, t=1., threshold=0.85, name='discriminator'):
         """
         :param x: shape=(n, t, n_mels)
         :param is_training
@@ -38,18 +37,9 @@ class Model(ModelDesc):
         :return: prediction. shape=(n, 1)
         """
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
-            # frame-level
-            x = tf.layers.dense(x, units=self.hidden_units, activation=tf.nn.relu)  # (n, t, h)
-
-            out = conv1d_banks(x, K=self.num_banks, num_units=self.hidden_units, norm_type=self.norm_type,
-                               is_training=is_training)  # (n, t, k * h)
-
-            out = tf.layers.max_pooling1d(out, 2, 1, padding='same')  # (n, t, k * h)
-
-            out = conv1d(out, self.hidden_units, 3, scope='conv1d_1')  # (n, t, h)
+            out = conv1d(x, self.hidden_units, 3, scope='conv1d_1')  # (n, t, h)
             out = normalize(out, type=self.norm_type, is_training=is_training, activation_fn=tf.nn.relu)
             out = conv1d(out, self.hidden_units, 3, scope='conv1d_2')  # (n, t, h)
-            out += x  # (n, t, h) # residual connections
 
             for i in range(self.num_highway):
                 out = highwaynet(out, num_units=self.hidden_units, scope='highwaynet_{}'.format(i))  # (n, t, h)
@@ -57,7 +47,7 @@ class Model(ModelDesc):
             out = gru(out, self.hidden_units, False)  # (n, t, h)
 
             # take the last output
-            out = out[..., -1]  # (n, h)
+            out = out[..., -1, :]  # (n, h)
 
             # discrimination
             logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
@@ -92,4 +82,55 @@ class Model(ModelDesc):
         return tf.train.AdamOptimizer(lr)
 
 
-default_model = Model(num_banks=8, hidden_units=128, num_highway=2, norm_type='ins')
+class CBHGModel(BinaryClassificationModel):
+    """
+    n = batch size
+    t = timestep size
+    h = hidden size
+    """
+
+    def __init__(self, num_banks, hidden_units, num_highway, norm_type):
+        super().__init__(hidden_units, num_highway, norm_type)
+        self.num_banks = num_banks
+
+    def discriminate(self, x, is_training=False, t=1., threshold=0.85, name='discriminator'):
+        """
+        :param x: shape=(n, t, n_mels)
+        :param is_training
+        :param t: temperature
+        :param threshold
+        :param name
+        :return: prediction. shape=(n, 1)
+        """
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
+            # frame-level
+            x = tf.layers.dense(x, units=self.hidden_units, activation=tf.nn.relu)  # (n, t, h)
+
+            out = conv1d_banks(x, K=self.num_banks, num_units=self.hidden_units, norm_type=self.norm_type,
+                               is_training=is_training)  # (n, t, k * h)
+
+            out = tf.layers.max_pooling1d(out, 2, 1, padding='same')  # (n, t, k * h)
+
+            out = conv1d(out, self.hidden_units, 3, scope='conv1d_1')  # (n, t, h)
+            out = normalize(out, type=self.norm_type, is_training=is_training, activation_fn=tf.nn.relu)
+            out = conv1d(out, self.hidden_units, 3, scope='conv1d_2')  # (n, t, h)
+            out += x  # (n, t, h) # residual connections
+
+            for i in range(self.num_highway):
+                out = highwaynet(out, num_units=self.hidden_units, scope='highwaynet_{}'.format(i))  # (n, t, h)
+
+            out = gru(out, self.hidden_units, False)  # (n, t, h)
+
+            # take the last output
+            out = out[..., -1, :]  # (n, h)
+
+            # discrimination
+            logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
+            prob = tf.nn.softmax(logits / t)  # (n, 2)
+            pred = tf.greater(prob[:, 1], threshold)  # (n,)
+
+        return logits, prob, pred
+
+
+# default_model = CBHGModel(num_banks=8, hidden_units=128, num_highway=2, norm_type='ins')
+default_model = BinaryClassificationModel(hidden_units=64, num_highway=2, norm_type='ins')
