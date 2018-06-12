@@ -27,7 +27,7 @@ class BinaryClassificationModel(ModelDesc):
         self.num_highway = num_highway
         self.norm_type = norm_type
 
-    def discriminate(self, x, is_training=False, t=1., threshold=0.85, name='discriminator'):
+    def discriminate(self, x, is_training=False, threshold=0.7, name='discriminator'):
         """
         :param x: shape=(n, t, n_mels)
         :param is_training
@@ -50,14 +50,13 @@ class BinaryClassificationModel(ModelDesc):
             out = out[..., -1, :]  # (n, h)
 
             # discrimination
-            logits = tf.layers.dense(out, 2, name='logits')  # (n, 2)
-            prob = tf.nn.softmax(logits / t)  # (n, 2)
-            pred = tf.greater(prob[:, 1], threshold)  # (n,)
+            prob = tf.layers.dense(out, 1, name='logits', activation=tf.nn.sigmoid)  # (n,)
+            pred = tf.greater(prob, threshold)  # (n,)
 
-        return logits, prob, pred
+        return prob, pred
 
     def loss(self):
-        loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
+        loss = -(self.labels[:, 1] * tf.log(self.prob) + self.labels[:, 0] * tf.log(1. - self.prob))  # cross entropy
         loss = tf.reduce_mean(loss, name='loss')
         return loss
 
@@ -70,7 +69,7 @@ class BinaryClassificationModel(ModelDesc):
     def _build_graph(self, inputs):
         _, self.x, self.labels = inputs
         is_training = get_current_tower_context().is_training
-        self.logits, self.prob, self.pred = self.discriminate(self.x, is_training)  # (n, 2), (n,)
+        self.prob, self.pred = self.discriminate(self.x, is_training, threshold=hp.disc.threshold)  # (n,), (n,)
         self.cost = self.loss()
 
         # summaries
