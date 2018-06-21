@@ -129,7 +129,7 @@ class WaveNetClassificationModel(ModelDesc):
             pred = tf.greater(prob, threshold)  # (n, 2)
         return logits, prob, pred
 
-    def loss(self, alpha=10.):
+    def loss(self, alpha=1.):
         # loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
         tar_labels, ntar_labels = self.labels[:, 1], self.labels[:, 0]
         tar_prob, ntar_prob = self.prob[:, 1], self.prob[:, 0]

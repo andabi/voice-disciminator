@@ -14,13 +14,9 @@ Work In Progress
 * A large set of raw waves of non-target speakers. label 0
 * preprocessing required
   * consistent sample rate
-* augment volumns
 
 ## TODOs
-* dataset for non-target
-  * optimize data pipeline
-* merge/refactor mudules.py
-* fix: python 2 compatibility in data.py
+* python 2 compatibility
 * hparam xxx/yyy
 
 ## Related Papers
