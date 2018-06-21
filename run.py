@@ -22,7 +22,7 @@ from tensorpack.utils import logger
 
 from data import LabelledDataset, UnLabelledDataset
 from hparam import hparam as hp
-from models import default_model
+from models import *
 from utils import remove_all_files
 
 
@@ -30,12 +30,12 @@ class EvalCallback(Callback):
 
     def _setup_graph(self):
         self.pred = self.trainer.get_predictor(
-            ['melspec', 'labels'], ['loss'])
-        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5, is_training=False)
+            ['wav', 'melspec', 'labels'], ['loss'])
+        self.dataset = LabelledDataset(hp.eval.batch_size, hp.eval.tar_path, hp.eval.ntar_path, length=hp.signal.length, tar_ratio=0.5)
 
     def _trigger_epoch(self):
-        wav, melspec, label = zip(*list(self.dataset.get_random_wav_and_label() for _ in range(hp.eval.batch_size)))
-        loss, = self.pred(melspec, label)
+        wav, melspec, label = zip(*list(self.dataset.test.get_single_data() for _ in range(hp.eval.batch_size)))
+        loss, = self.pred(wav, melspec, label)
         self.trainer.monitors.put_scalar('eval/loss', loss)
         # self.trainer.monitors.put_scalar('eval/accuracy', acc)
 
@@ -59,9 +59,11 @@ class Runner(object):
         # set logger for event and model saver
         logger.set_logger_dir(hp.logdir)
 
+        model = globals()[hp.model]()
+        print("Model name: {}".format(hp.model))
         train_conf = TrainConfig(
-            model=default_model,
-            data=TFDatasetInput(dataset()),
+            model=model,
+            data=TFDatasetInput(dataset.train.get_dataset()),
             callbacks=[
                 ModelSaver(checkpoint_dir=hp.logdir),
                 EvalCallback(),
@@ -85,7 +87,7 @@ class Runner(object):
 
         launch_train_with_config(train_conf, trainer=trainer)
 
-    def discriminate(self, case='default', model=default_model, ckpt=None, gpu=None):
+    def discriminate(self, case='default', ckpt=None, gpu=None):
         """
         :param case: experiment case name
         :param ckpt: checkpoint to load model
@@ -102,10 +104,9 @@ class Runner(object):
         wav_tensor, melspec_tensor, wavfile_tensor = iterator.get_next()
 
         # feed forward
-        prob_tensor, pred_tensor = model.discriminate(melspec_tensor, is_training=False, threshold=hp.disc.threshold)
-
-        # summaries
-        # summ_op = tf.summary.merge_all()
+        model = globals()[hp.model]()
+        print("Model name: {}".format(hp.model))
+        _, prob_tensor, pred_tensor = model.discriminate(wav_tensor, melspec_tensor, is_training=False, threshold=hp.disc.threshold)
 
         session_config = tf.ConfigProto(
             device_count={'CPU': 1, 'GPU': 1},
@@ -125,15 +126,10 @@ class Runner(object):
             while True:
                 try:
                     pred, wavfile, prob = sess.run([pred_tensor, wavfile_tensor, prob_tensor])
-                    # tar_wavfile, tar_prob = zip(*[(w, pr) for p, w, pr in zip(pred, wavfile, prob) if p == 1])
-                    # print('target wavfile size: {}'.format(len(tar_wavfile)))
-                    # for w, p in zip(tar_wavfile, tar_prob):
                     for w, p, pr in zip(wavfile, pred, prob):
                         print(w, p, pr)
                 except tf.errors.OutOfRangeError:
                     break
-
-            # summ = sess.run([summ_op])
 
         # write summaries in tensorboard
         writer = tf.summary.FileWriter(hp.logdir)
