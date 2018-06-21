@@ -1,4 +1,6 @@
 # Voice Discriminator
+Work In Progress
+
 ## Overview
 * anomaly detection
 
@@ -20,3 +22,8 @@
 * merge/refactor mudules.py
 * fix: python 2 compatibility in data.py
 * hparam xxx/yyy
+
+## Related Papers
+* Training Confidence-calibrated Classifiers for Detecting Out-of-Distribution Samples. (2017, November 26). Training Confidence-calibrated Classifiers for Detecting Out-of-Distribution Samples. CoRR.
+* Liang, S., Li, Y., & Srikant, R. (n.d.). ENHANCING THE RELIABILITY OF OUT-OF-DISTRIBUTION IMAGE DETECTION IN NEURAL NETWORKS. Pdfs.Semanticscholar.org.
+* Schlegl, T., Seeböck, P., Waldstein, S. M., Schmidt-Erfurth, U., & Langs, G. (2017, March 17). Unsupervised Anomaly Detection with Generative Adversarial Networks to Guide Marker Discovery. arXiv.org.
