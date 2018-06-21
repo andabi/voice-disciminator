@@ -69,7 +69,9 @@ class LabelledDataset():
         """
         wavfiles, label = (tar_wavfiles, self.tar_labels) if np.random.sample(1) <= self.tar_ratio else (ntar_wavfiles, self.ntar_labels)
         wavfile = wavfiles[np.random.randint(0, len(wavfiles))]
-        if wavfile.decode().endswith('arr'):  # pyarrow format
+        if type(wavfile) == bytes:
+            wavfile = wavfile.decode()
+        if wavfile.endswith('arr'):  # pyarrow format
             wav = read_wav_from_arr(wavfile)
         else:
             wav = read_wav(wavfile, sr=hp.signal.sr)
